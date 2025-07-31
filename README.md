@@ -13,5 +13,3 @@
 ```
 
 (Change the db_url to your, including login and password)
-
-teste
