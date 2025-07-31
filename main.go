@@ -98,6 +98,19 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		fmt.Println("Reset unsuccessful")
+		os.Exit(1)
+	}
+
+	fmt.Println("Reset Successful")
+
+	return nil
+}
+
 func main() {
 
 	var err error
@@ -121,6 +134,7 @@ func main() {
 
 	commandsStc.register("login", handlerLogin)
 	commandsStc.register("register", handlerRegister)
+	commandsStc.register("reset", handlerReset)
 
 	args := os.Args
 
