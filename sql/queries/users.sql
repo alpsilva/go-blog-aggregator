@@ -14,5 +14,9 @@ FROM users
 WHERE users.name = $1
 LIMIT 1;
 
+-- name: GetUsers :many
+SELECT *
+FROM users;
+
 -- name: ResetUsers :exec
 DELETE FROM users;

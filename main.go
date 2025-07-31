@@ -64,7 +64,7 @@ func handlerLogin(s *state, cmd command) error {
 		return err
 	}
 
-	fmt.Println("User has been set to:", s.cfg.CurrentUserName)
+	fmt.Println("User has been set to:", user.Name)
 
 	return nil
 }
@@ -91,7 +91,10 @@ func handlerRegister(s *state, cmd command) error {
 		return err
 	}
 
-	s.cfg.SetUser(newUser.Name)
+	err = s.cfg.SetUser(newUser.Name)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("User %s has been created with id %s\n", newUser.Name, newUser.ID.String())
 
@@ -107,6 +110,28 @@ func handlerReset(s *state, cmd command) error {
 	}
 
 	fmt.Println("Reset Successful")
+
+	return nil
+}
+
+func handlerListUsers(s *state, cmd command) error {
+
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	activeUserName := s.cfg.CurrentUserName
+
+	for _, user := range users {
+		output := "* " + user.Name
+
+		if user.Name == activeUserName {
+			output += " (current)"
+		}
+
+		fmt.Println(output)
+	}
 
 	return nil
 }
@@ -134,6 +159,7 @@ func main() {
 
 	commandsStc.register("login", handlerLogin)
 	commandsStc.register("register", handlerRegister)
+	commandsStc.register("users", handlerListUsers)
 	commandsStc.register("reset", handlerReset)
 
 	args := os.Args
