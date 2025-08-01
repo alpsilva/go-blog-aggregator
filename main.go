@@ -156,6 +156,36 @@ func handlerListUsers(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+
+	if len(cmd.args) < 2 {
+		return errors.New("not enough arguments. needs name and url")
+	}
+
+	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	params := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    currentUser.ID,
+		Name:      cmd.args[0],
+		Url:       cmd.args[1],
+	}
+
+	newFeed, err := s.db.CreateFeed(context.Background(), params)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(newFeed)
+
+	return nil
+}
+
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 
 	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
@@ -239,6 +269,7 @@ func main() {
 	commandsStc.register("register", handlerRegister)
 	commandsStc.register("users", handlerListUsers)
 	commandsStc.register("reset", handlerReset)
+	commandsStc.register("addfeed", handlerAddFeed)
 	commandsStc.register("agg", handlerAgg)
 
 	args := os.Args
