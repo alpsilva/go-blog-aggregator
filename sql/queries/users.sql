@@ -14,6 +14,12 @@ FROM users
 WHERE users.name = $1
 LIMIT 1;
 
+-- name: GetUserById :one
+SELECT *
+FROM users
+WHERE users.id = $1
+LIMIT 1;
+
 -- name: GetUsers :many
 SELECT *
 FROM users;

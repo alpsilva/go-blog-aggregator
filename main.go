@@ -186,6 +186,25 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerListFeeds(s *state, cmd command) error {
+
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, feed := range feeds {
+		user, err := s.db.GetUserById(context.Background(), feed.UserID)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("* %s - %s (%s)\n", feed.Name, feed.Url, user.Name)
+	}
+
+	return nil
+}
+
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 
 	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
@@ -270,6 +289,7 @@ func main() {
 	commandsStc.register("users", handlerListUsers)
 	commandsStc.register("reset", handlerReset)
 	commandsStc.register("addfeed", handlerAddFeed)
+	commandsStc.register("feeds", handlerListFeeds)
 	commandsStc.register("agg", handlerAgg)
 
 	args := os.Args
