@@ -156,22 +156,17 @@ func handlerListUsers(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 
 	if len(cmd.args) < 2 {
 		return errors.New("not enough arguments. needs name and url")
-	}
-
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
 	}
 
 	params := database.CreateFeedParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID:    currentUser.ID,
+		UserID:    user.ID,
 		Name:      cmd.args[0],
 		Url:       cmd.args[1],
 	}
@@ -185,7 +180,7 @@ func handlerAddFeed(s *state, cmd command) error {
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID:    currentUser.ID,
+		UserID:    user.ID,
 		FeedID:    newFeed.ID,
 	}
 
@@ -218,13 +213,7 @@ func handlerListFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
-
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
-	}
-
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) < 1 {
 		return errors.New("not enough arguments. needs url")
 	}
@@ -238,7 +227,7 @@ func handlerFollow(s *state, cmd command) error {
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID:    currentUser.ID,
+		UserID:    user.ID,
 		FeedID:    feed.ID,
 	}
 
@@ -252,14 +241,8 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerListFollows(s *state, cmd command) error {
-
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
-	}
-
-	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), currentUser.ID)
+func handlerListFollows(s *state, cmd command, user database.User) error {
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		return err
 	}
@@ -332,6 +315,20 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	f := func(s *state, cmd command) error {
+		currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		handler(s, cmd, currentUser)
+		return nil
+	}
+
+	return f
+}
+
 func main() {
 
 	var err error
@@ -357,10 +354,10 @@ func main() {
 	commandsStc.register("register", handlerRegister)
 	commandsStc.register("users", handlerListUsers)
 	commandsStc.register("reset", handlerReset)
-	commandsStc.register("addfeed", handlerAddFeed)
+	commandsStc.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	commandsStc.register("feeds", handlerListFeeds)
-	commandsStc.register("follow", handlerFollow)
-	commandsStc.register("following", handlerListFollows)
+	commandsStc.register("follow", middlewareLoggedIn(handlerFollow))
+	commandsStc.register("following", middlewareLoggedIn(handlerListFollows))
 
 	commandsStc.register("agg", handlerAgg)
 
