@@ -181,6 +181,19 @@ func handlerAddFeed(s *state, cmd command) error {
 		return err
 	}
 
+	followParams := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    currentUser.ID,
+		FeedID:    newFeed.ID,
+	}
+
+	_, err = s.db.CreateFeedFollow(context.Background(), followParams)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println(newFeed)
 
 	return nil
@@ -201,6 +214,62 @@ func handlerListFeeds(s *state, cmd command) error {
 
 		fmt.Printf("* %s - %s (%s)\n", feed.Name, feed.Url, user.Name)
 	}
+
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+
+	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	if len(cmd.args) < 1 {
+		return errors.New("not enough arguments. needs url")
+	}
+
+	feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
+	if err != nil {
+		return err
+	}
+
+	params := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    currentUser.ID,
+		FeedID:    feed.ID,
+	}
+
+	followRecord, err := s.db.CreateFeedFollow(context.Background(), params)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(followRecord)
+
+	return nil
+}
+
+func handlerListFollows(s *state, cmd command) error {
+
+	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), currentUser.ID)
+	if err != nil {
+		return err
+	}
+
+	output := ""
+	for i, feed := range feeds {
+		output += fmt.Sprintf("%d - %s\n", i+1, feed.Name)
+	}
+
+	fmt.Println(output)
 
 	return nil
 }
@@ -290,6 +359,9 @@ func main() {
 	commandsStc.register("reset", handlerReset)
 	commandsStc.register("addfeed", handlerAddFeed)
 	commandsStc.register("feeds", handlerListFeeds)
+	commandsStc.register("follow", handlerFollow)
+	commandsStc.register("following", handlerListFollows)
+
 	commandsStc.register("agg", handlerAgg)
 
 	args := os.Args
