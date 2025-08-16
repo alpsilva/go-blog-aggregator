@@ -314,16 +314,20 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &rssFeed, nil
 }
 
-func handlerAgg(s *state, cmd command) error {
-
-	url := "https://www.wagslane.dev/index.xml"
-
-	ctx := context.Background()
-
-	feed, err := fetchFeed(ctx, url)
+func scrapeFeeds(s *state) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return err
+	}
+
+	feed, err := fetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return err
 	}
 
 	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
@@ -333,9 +337,32 @@ func handlerAgg(s *state, cmd command) error {
 		rssItem.Description = html.UnescapeString(rssItem.Description)
 	}
 
-	fmt.Println(feed)
+	for _, item := range feed.Channel.Item {
+		fmt.Println(item.Title)
+	}
 
 	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) < 1 {
+		return errors.New("missing arg 'time_between_reqs'")
+	}
+
+	duration, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Collecting feeds every %s\n", duration)
+
+	ticker := time.NewTicker(duration)
+	for ; ; <-ticker.C {
+		err = scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
