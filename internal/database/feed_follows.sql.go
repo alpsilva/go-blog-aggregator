@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -86,7 +87,7 @@ func (q *Queries) DeleteFeedFollow(ctx context.Context, arg DeleteFeedFollowPara
 }
 
 const getFeedFollowsForUser = `-- name: GetFeedFollowsForUser :many
-SELECT u.name AS user_name, f.id, f.created_at, f.updated_at, f.user_id, f.name, f.url
+SELECT u.name AS user_name, f.id, f.created_at, f.updated_at, f.user_id, f.name, f.url, f.last_fetched_at
 FROM feed_follows ff
 INNER JOIN users u ON ff.user_id = u.id
 INNER JOIN feeds f ON ff.feed_id = f.id
@@ -94,13 +95,14 @@ WHERE ff.user_id = $1
 `
 
 type GetFeedFollowsForUserRow struct {
-	UserName  string
-	ID        uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    uuid.UUID
-	Name      string
-	Url       string
+	UserName      string
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UserID        uuid.UUID
+	Name          string
+	Url           string
+	LastFetchedAt sql.NullTime
 }
 
 func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) ([]GetFeedFollowsForUserRow, error) {
@@ -120,6 +122,7 @@ func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) (
 			&i.UserID,
 			&i.Name,
 			&i.Url,
+			&i.LastFetchedAt,
 		); err != nil {
 			return nil, err
 		}
