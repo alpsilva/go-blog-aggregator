@@ -339,7 +339,7 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range feed.Channel.Item {
-		publishedAt, err := time.Parse("02/01/2006 15:04:05", item.PubDate)
+		publishedAt, err := time.Parse(time.RFC1123Z, item.PubDate)
 		if err != nil {
 			return fmt.Errorf("error parsing date: %s", item.PubDate)
 		}
