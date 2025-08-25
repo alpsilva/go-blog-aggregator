@@ -16,6 +16,7 @@ import (
 	"github.com/alpsilva/go-blog-aggregator.git/internal/database"
 	"github.com/google/uuid"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -338,7 +339,31 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range feed.Channel.Item {
-		fmt.Println(item.Title)
+		publishedAt, err := time.Parse("02/01/2006 15:04:05", item.PubDate)
+		if err != nil {
+			return fmt.Errorf("error parsing date: %s", item.PubDate)
+		}
+
+		params := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: sql.NullString{String: item.Description, Valid: true},
+			PublishedAt: publishedAt,
+			FeedID:      nextFeed.ID,
+		}
+
+		_, err = s.db.CreatePost(context.Background(), params)
+		if err != nil {
+			var pqErr *pq.Error
+			if errors.Is(err, pqErr) && pqErr.Code == "23505" {
+				fmt.Printf("post with url '%s' duplicated. Ignoring...", params.Url)
+			} else {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -409,7 +434,6 @@ func main() {
 	commandsStc.register("follow", middlewareLoggedIn(handlerFollow))
 	commandsStc.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 	commandsStc.register("following", middlewareLoggedIn(handlerListFollows))
-
 	commandsStc.register("agg", handlerAgg)
 
 	args := os.Args
