@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/alpsilva/config"
@@ -369,6 +370,38 @@ func scrapeFeeds(s *state) error {
 	return nil
 }
 
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var limit int32 = int32(2)
+
+	if len(cmd.args) > 0 {
+		argLimit, err := strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return err
+		}
+
+		limit = int32(argLimit)
+	}
+
+	params := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  limit,
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), params)
+	if err != nil {
+		return err
+	}
+
+	output := ""
+	for i, post := range posts {
+		output += fmt.Sprintf("%d - %s\n", i+1, post.Title)
+	}
+
+	fmt.Println(output)
+
+	return nil
+}
+
 func handlerAgg(s *state, cmd command) error {
 	if len(cmd.args) < 1 {
 		return errors.New("missing arg 'time_between_reqs'")
@@ -434,6 +467,7 @@ func main() {
 	commandsStc.register("follow", middlewareLoggedIn(handlerFollow))
 	commandsStc.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 	commandsStc.register("following", middlewareLoggedIn(handlerListFollows))
+	commandsStc.register("browse", middlewareLoggedIn(handlerBrowse))
 	commandsStc.register("agg", handlerAgg)
 
 	args := os.Args
